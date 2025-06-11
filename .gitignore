@@ -117,4 +117,6 @@ coverage/
 .prettiercache 
 
 client_secret*.json
-*.secret.json
+*.secret.json.blogger-tokens.json 
+
+.blogger-tokens.json
