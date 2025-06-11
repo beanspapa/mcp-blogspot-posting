@@ -66,38 +66,39 @@ export abstract class BaseServer {
    * Setup MCP protocol handlers
    */
   private setupHandlers(): void {
-    // Tool handlers
+    // Tool handlers (항상 등록)
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return await this.toolManager.listTools();
     });
-
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       return await this.toolManager.callTool(name, args);
     });
 
-    // Resource handlers
-    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
-      return await this.resourceManager.listResources();
-    });
+    // Resource handlers (capabilities.resources가 있을 때만)
+    if (this.config.capabilities?.resources !== undefined) {
+      this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+        return await this.resourceManager.listResources();
+      });
+      this.server.setRequestHandler(
+        ReadResourceRequestSchema,
+        async (request) => {
+          const { uri } = request.params;
+          return await this.resourceManager.readResource(uri);
+        }
+      );
+    }
 
-    this.server.setRequestHandler(
-      ReadResourceRequestSchema,
-      async (request) => {
-        const { uri } = request.params;
-        return await this.resourceManager.readResource(uri);
-      }
-    );
-
-    // Prompt handlers
-    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
-      return await this.promptManager.listPrompts();
-    });
-
-    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-      return await this.promptManager.getPromptResult(name, args);
-    });
+    // Prompt handlers (capabilities.prompts가 있을 때만)
+    if (this.config.capabilities?.prompts !== undefined) {
+      this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
+        return await this.promptManager.listPrompts();
+      });
+      this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+        const { name, arguments: args } = request.params;
+        return await this.promptManager.getPromptResult(name, args);
+      });
+    }
   }
 
   /**

@@ -12,10 +12,10 @@ import {
 import { logger } from "../utils/logger.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 import { Validator } from "../utils/validation.js";
-import GoogleAuth from '../lib/googleAuth';
-import { TokenManager } from '../lib/tokenManager';
-import BloggerService from '../services/bloggerService';
-import { z } from 'zod';
+import GoogleAuth from "../lib/googleAuth.js";
+import { TokenManager } from "../lib/tokenManager.js";
+import BloggerService from "../services/bloggerService.js";
+import { z } from "zod";
 
 /**
  * Tool manager class for registering and executing tools
@@ -299,17 +299,19 @@ export class ToolManager {
   /**
    * 블로그 포스팅 MCP Tool 등록
    */
-  registerBloggerTools(): void {
+  registerBloggerTools(
+    config: import("../types/bloggerTypes.js").Config
+  ): void {
     // blog-post 단일 포스팅 Tool
     this.registerTool({
-      name: 'blog-post',
-      description: 'Google Blogger에 새 포스트를 작성합니다.',
+      name: "blog-post",
+      description: "Google Blogger에 새 포스트를 작성합니다.",
       inputSchema: z.object({
-        blogId: z.string().describe('블로그 ID'),
-        title: z.string().describe('포스트 제목'),
-        content: z.string().describe('포스트 내용(HTML)'),
-        labels: z.array(z.string()).optional().describe('라벨 목록'),
-        isDraft: z.boolean().optional().describe('초안 여부')
+        blogId: z.string().describe("블로그 ID"),
+        title: z.string().describe("포스트 제목"),
+        content: z.string().describe("포스트 내용(HTML)"),
+        labels: z.array(z.string()).optional().describe("라벨 목록"),
+        isDraft: z.boolean().optional().describe("초안 여부"),
       }),
       handler: async (params) => {
         // 인증 토큰 확인
@@ -317,13 +319,16 @@ export class ToolManager {
         if (!tokens || !tokens.access_token) {
           return {
             content: [
-              { type: 'text', text: '인증 토큰이 없습니다. 먼저 인증을 완료하세요.' }
+              {
+                type: "text",
+                text: "인증 토큰이 없습니다. 먼저 인증을 완료하세요.",
+              },
             ],
-            isError: true
+            isError: true,
           };
         }
         // 인증 클라이언트 생성
-        const googleAuth = new GoogleAuth();
+        const googleAuth = new GoogleAuth(config);
         googleAuth.setCredentials(tokens);
         const bloggerService = new BloggerService(googleAuth.getAuthClient());
         try {
@@ -331,74 +336,93 @@ export class ToolManager {
             title: params.title,
             content: params.content,
             labels: params.labels,
-            isDraft: params.isDraft
+            isDraft: params.isDraft,
           };
-          const result = await bloggerService.createPost(params.blogId, postData);
+          const result = await bloggerService.createPost(
+            params.blogId,
+            postData
+          );
           return {
             content: [
-              { type: 'text', text: `포스트 작성 성공!\nURL: ${result.url}\n제목: ${result.title}` }
+              {
+                type: "text",
+                text: `포스트 작성 성공!\nURL: ${result.url}\n제목: ${result.title}`,
+              },
             ],
-            isError: false
+            isError: false,
           };
         } catch (error: any) {
           return {
             content: [
-              { type: 'text', text: `포스트 작성 실패: ${error.message}` }
+              { type: "text", text: `포스트 작성 실패: ${error.message}` },
             ],
-            isError: true
+            isError: true,
           };
         }
       },
-      service: 'blogger'
+      service: "blogger",
     });
 
     // blog-batch-post 배치 포스팅 Tool
     this.registerTool({
-      name: 'blog-batch-post',
-      description: 'Google Blogger에 여러 포스트를 한 번에 작성합니다.',
+      name: "blog-batch-post",
+      description: "Google Blogger에 여러 포스트를 한 번에 작성합니다.",
       inputSchema: z.object({
-        blogId: z.string().describe('블로그 ID'),
-        posts: z.array(z.object({
-          title: z.string(),
-          content: z.string(),
-          labels: z.array(z.string()).optional(),
-          isDraft: z.boolean().optional()
-        })).describe('포스트 배열')
+        blogId: z.string().describe("블로그 ID"),
+        posts: z
+          .array(
+            z.object({
+              title: z.string(),
+              content: z.string(),
+              labels: z.array(z.string()).optional(),
+              isDraft: z.boolean().optional(),
+            })
+          )
+          .describe("포스트 배열"),
       }),
       handler: async (params) => {
         const tokens = TokenManager.loadTokens();
         if (!tokens || !tokens.access_token) {
           return {
             content: [
-              { type: 'text', text: '인증 토큰이 없습니다. 먼저 인증을 완료하세요.' }
+              {
+                type: "text",
+                text: "인증 토큰이 없습니다. 먼저 인증을 완료하세요.",
+              },
             ],
-            isError: true
+            isError: true,
           };
         }
-        const googleAuth = new GoogleAuth();
+        const googleAuth = new GoogleAuth(config);
         googleAuth.setCredentials(tokens);
         const bloggerService = new BloggerService(googleAuth.getAuthClient());
         try {
-          const results = await bloggerService.batchCreatePosts(params.blogId, params.posts);
-          const successCount = results.filter(r => r.success).length;
+          const results = await bloggerService.batchCreatePosts(
+            params.blogId,
+            params.posts
+          );
+          const successCount = results.filter((r) => r.success).length;
           const failCount = results.length - successCount;
           return {
             content: [
-              { type: 'text', text: `배치 포스팅 완료! 성공: ${successCount}, 실패: ${failCount}` },
-              { type: 'text', text: JSON.stringify(results, null, 2) }
+              {
+                type: "text",
+                text: `배치 포스팅 완료! 성공: ${successCount}, 실패: ${failCount}`,
+              },
+              { type: "text", text: JSON.stringify(results, null, 2) },
             ],
-            isError: failCount > 0
+            isError: failCount > 0,
           };
         } catch (error: any) {
           return {
             content: [
-              { type: 'text', text: `배치 포스팅 실패: ${error.message}` }
+              { type: "text", text: `배치 포스팅 실패: ${error.message}` },
             ],
-            isError: true
+            isError: true,
           };
         }
       },
-      service: 'blogger'
+      service: "blogger",
     });
   }
 }

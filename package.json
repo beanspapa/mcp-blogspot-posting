@@ -36,7 +36,8 @@
     "zod": "^3.25.32",
     "mcps-logger": "^1.0.0",
     "googleapis": "^127.0.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "open": "^9.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.23",
@@ -60,4 +61,4 @@
   "engines": {
     "node": ">=18.0.0"
   }
-} 
+}
