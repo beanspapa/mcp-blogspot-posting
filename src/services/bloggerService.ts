@@ -52,6 +52,15 @@ class BloggerService {
     }
   }
 
+  // 블로그 주소로 블로그 ID 조회
+  async getBlogIdByUrl(blogUrl: string): Promise<string> {
+    const info = await this.getBlogByUrl(blogUrl);
+    if (!info || !info.id) {
+      throw new Error('블로그 주소에서 블로그 ID를 찾을 수 없습니다.');
+    }
+    return info.id;
+  }
+
   // 블로그 포스트 목록 조회
   async getPosts(blogId: string, options: PostListOptions = {}): Promise<any> {
     try {

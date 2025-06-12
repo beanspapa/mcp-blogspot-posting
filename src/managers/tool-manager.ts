@@ -16,6 +16,7 @@ import GoogleAuth from "../lib/googleAuth.js";
 import { TokenManager } from "../lib/tokenManager.js";
 import BloggerService from "../services/bloggerService.js";
 import { z } from "zod";
+import { BlogPost } from "../types/bloggerTypes.js";
 
 /**
  * Tool manager class for registering and executing tools
@@ -299,15 +300,20 @@ export class ToolManager {
   /**
    * 블로그 포스팅 MCP Tool 등록
    */
-  registerBloggerTools(
-    config: import("../types/bloggerTypes.js").Config
-  ): void {
+  registerBloggerTools({
+    bloggerService,
+    blogId,
+    googleAuth,
+  }: {
+    bloggerService: any;
+    blogId: string;
+    googleAuth: any;
+  }): void {
     // blog-post 단일 포스팅 Tool
     this.registerTool({
       name: "blog-post",
       description: "Google Blogger에 새 포스트를 작성합니다.",
       inputSchema: z.object({
-        blogId: z.string().describe("블로그 ID"),
         title: z.string().describe("포스트 제목"),
         content: z.string().describe("포스트 내용(HTML)"),
         labels: z.array(z.string()).optional().describe("라벨 목록"),
@@ -327,19 +333,24 @@ export class ToolManager {
             isError: true,
           };
         }
-        // 인증 클라이언트 생성
-        const googleAuth = new GoogleAuth(config);
         googleAuth.setCredentials(tokens);
-        const bloggerService = new BloggerService(googleAuth.getAuthClient());
         try {
+          if (!blogId) {
+            return {
+              content: [
+                { type: "text", text: `서버에 블로그 ID(BLOG_ID)가 설정되어 있지 않습니다.` },
+              ],
+              isError: true,
+            };
+          }
           const postData = {
             title: params.title,
             content: params.content,
             labels: params.labels,
-            isDraft: params.isDraft,
+            isDraft: params.isDraft === undefined ? true : params.isDraft,
           };
           const result = await bloggerService.createPost(
-            params.blogId,
+            blogId,
             postData
           );
           return {
@@ -368,7 +379,6 @@ export class ToolManager {
       name: "blog-batch-post",
       description: "Google Blogger에 여러 포스트를 한 번에 작성합니다.",
       inputSchema: z.object({
-        blogId: z.string().describe("블로그 ID"),
         posts: z
           .array(
             z.object({
@@ -393,15 +403,26 @@ export class ToolManager {
             isError: true,
           };
         }
-        const googleAuth = new GoogleAuth(config);
         googleAuth.setCredentials(tokens);
-        const bloggerService = new BloggerService(googleAuth.getAuthClient());
         try {
+          if (!blogId) {
+            return {
+              content: [
+                { type: "text", text: `서버에 블로그 ID(BLOG_ID)가 설정되어 있지 않습니다.` },
+              ],
+              isError: true,
+            };
+          }
+          // 각 포스트의 isDraft 기본값 true 적용
+          const posts = (params.posts as BlogPost[]).map((p) => ({
+            ...p,
+            isDraft: p.isDraft === undefined ? true : p.isDraft,
+          }));
           const results = await bloggerService.batchCreatePosts(
-            params.blogId,
-            params.posts
+            blogId,
+            posts
           );
-          const successCount = results.filter((r) => r.success).length;
+          const successCount = results.filter((r: any) => r.success).length;
           const failCount = results.length - successCount;
           return {
             content: [

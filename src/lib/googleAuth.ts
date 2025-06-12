@@ -1,16 +1,27 @@
 import { google } from "googleapis";
-import { Config, TokenSet } from "../types/bloggerTypes.js";
+import { TokenSet } from "../types/bloggerTypes.js";
 
 class GoogleAuth {
-  private oauth2Client: any;
-  private config: Config;
+  public oauth2Client: any;
+  private clientId: string;
+  private clientSecret: string;
+  private scopes: string[];
+  public redirectUri?: string;
 
-  constructor(config: Config, redirectUri?: string) {
-    this.config = config;
+  constructor({ clientId, clientSecret, scopes, redirectUri }: {
+    clientId: string;
+    clientSecret: string;
+    scopes: string[];
+    redirectUri?: string;
+  }) {
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.scopes = scopes;
+    this.redirectUri = redirectUri;
     this.oauth2Client = new google.auth.OAuth2(
-      config.google.clientId,
-      config.google.clientSecret,
-      redirectUri || config.google.redirectUri
+      this.clientId,
+      this.clientSecret,
+      this.redirectUri ?? ""
     );
 
     // 토큰 자동 갱신 설정
@@ -28,7 +39,7 @@ class GoogleAuth {
   generateAuthUrl(): string {
     const authUrl = this.oauth2Client.generateAuthUrl({
       access_type: "offline",
-      scope: this.config.google.scopes,
+      scope: this.scopes,
       include_granted_scopes: true,
       prompt: "consent", // 항상 리프레시 토큰을 받기 위해
     });

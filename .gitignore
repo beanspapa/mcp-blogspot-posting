@@ -120,3 +120,4 @@ client_secret*.json
 *.secret.json.blogger-tokens.json 
 
 .blogger-tokens.json
+.blog_id_cache.json

@@ -12,7 +12,7 @@ import { Config } from "../types/bloggerTypes.js";
  * - 인증 완료 메시지를 브라우저에 표시한다.
  * @param config Config 객체 (필수)
  */
-export async function runGoogleAuthFlow(config: Config): Promise<void> {
+export async function runGoogleAuthFlow(googleAuth: GoogleAuth): Promise<void> {
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
       if (req.url && req.url.startsWith("/auth/google/callback")) {
@@ -23,9 +23,10 @@ export async function runGoogleAuthFlow(config: Config): Promise<void> {
         const code = urlObj.searchParams.get("code");
         if (code) {
           try {
-            // 콜백에서 받은 포트와 동일한 redirectUri로 GoogleAuth 인스턴스 생성
+            // 콜백에서 받은 포트와 동일한 redirectUri로 GoogleAuth 인스턴스의 redirectUri를 동적으로 세팅
             const redirectUri = `http://localhost:${(server.address() as any).port}/auth/google/callback`;
-            const googleAuth = new GoogleAuth(config, redirectUri);
+            googleAuth.redirectUri = redirectUri;
+            googleAuth.oauth2Client.redirectUri = redirectUri;
             const tokens = await googleAuth.getTokenFromCode(code);
             TokenManager.saveTokens(tokens);
             res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -49,7 +50,8 @@ export async function runGoogleAuthFlow(config: Config): Promise<void> {
       // 콜백 경로를 /auth/google/callback 으로 고정
       const redirectUri = `http://localhost:${port}/auth/google/callback`;
       // GoogleAuth 인스턴스에 redirectUri를 직접 전달
-      const googleAuth = new GoogleAuth(config, redirectUri);
+      googleAuth.redirectUri = redirectUri;
+      googleAuth.oauth2Client.redirectUri = redirectUri;
       const authUrl = googleAuth.generateAuthUrl();
       open(authUrl); // 브라우저 자동 오픈
       console.log(`브라우저에서 인증을 진행하세요: ${authUrl}`);

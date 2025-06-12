@@ -113,7 +113,6 @@ export interface Config {
   };
   server: {
     port: number;
-    sessionSecret: string;
   };
   blog: {
     id: string | null;
