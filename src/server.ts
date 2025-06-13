@@ -10,6 +10,8 @@ import { TokenManager } from "./lib/tokenManager.js";
 import GoogleAuth from "./lib/googleAuth.js";
 import { z } from "zod";
 import { runGoogleAuthFlow } from "./lib/googleAuthFlow.js";
+import { ToolManager } from "./managers/tool-manager.js";
+import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 // MCP 서버 인스턴스 생성
 const server = new Server(
@@ -120,74 +122,23 @@ async function prepareBloggerService() {
   return { bloggerService, blogId, googleAuth };
 }
 
-// MCP Tool 등록 함수
-async function registerTools({ bloggerService, blogId, googleAuth }: { bloggerService: any; blogId: string; googleAuth: any }) {
-  server.setRequestHandler(
-    z.object({ method: z.literal("tools/call"), params: z.object({ name: z.string(), arguments: z.any() }) }),
-    async (request) => {
-      const { name, arguments: args } = request.params;
-      if (name === "blog-post") {
-        try {
-          const postData = {
-            title: args.title,
-            content: args.content,
-            labels: args.labels,
-            isDraft: args.isDraft === undefined ? true : args.isDraft,
-          };
-          const result = await bloggerService.createPost(blogId, postData);
-          return {
-            content: [
-              {
-                type: "text",
-                text: `포스트 작성 성공!\nURL: ${result.url}\n제목: ${result.title}`,
-              },
-            ],
-            isError: false,
-          };
-        } catch (error: any) {
-          return {
-            content: [
-              { type: "text", text: `포스트 작성 실패: ${error.message}` },
-            ],
-            isError: true,
-          };
-        }
-      } else if (name === "blog-batch-post") {
-        try {
-          const posts = (args.posts as any[]).map((p) => ({
-            ...p,
-            isDraft: p.isDraft === undefined ? true : p.isDraft,
-          }));
-          const results = await bloggerService.batchCreatePosts(blogId, posts);
-          const successCount = results.filter((r: any) => r.success).length;
-          const failCount = results.length - successCount;
-          return {
-            content: [
-              {
-                type: "text",
-                text: `배치 포스팅 완료! 성공: ${successCount}, 실패: ${failCount}`,
-              },
-              { type: "text", text: JSON.stringify(results, null, 2) },
-            ],
-            isError: failCount > 0,
-          };
-        } catch (error: any) {
-          return {
-            content: [
-              { type: "text", text: `배치 포스팅 실패: ${error.message}` },
-            ],
-            isError: true,
-          };
-        }
-      }
-      return { content: [{ type: "text", text: "지원하지 않는 Tool" }], isError: true };
-    }
-  );
-}
-
 async function main() {
   const { bloggerService, blogId, googleAuth } = await prepareBloggerService();
-  await registerTools({ bloggerService, blogId, googleAuth });
+  // ToolManager 인스턴스 생성 및 blogger tool 등록
+  const toolManager = new ToolManager();
+  toolManager.registerBloggerTools({ bloggerService, blogId, googleAuth });
+
+  // MCP Tool 목록(list) 핸들러 등록
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return await toolManager.listTools();
+  });
+
+  // MCP Tool 실행(call) 핸들러 등록
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    return await toolManager.callTool(name, args);
+  });
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
