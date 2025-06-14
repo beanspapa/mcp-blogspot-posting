@@ -1,5 +1,5 @@
-import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { logger } from './logger.js';
+import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import { logInfo, logWarning, logError } from "./logger.js";
 
 /**
  * Error handling utility class
@@ -10,22 +10,22 @@ export class ErrorHandler {
    */
   static handleToolError(error: unknown, toolName: string): never {
     if (error instanceof McpError) {
-      logger.error(`Tool '${toolName}' failed:`, error.message);
+      logError(`Tool '${toolName}' failed: ` + error.message);
       throw error;
     }
 
     if (error instanceof Error) {
-      logger.error(`Tool '${toolName}' failed:`, error.message);
+      logError(`Tool '${toolName}' failed: ` + error.message);
       throw new McpError(
         ErrorCode.InternalError,
         `Tool execution failed: ${error.message}`
       );
     }
 
-    logger.error(`Tool '${toolName}' failed with unknown error:`, error);
+    logError(`Tool '${toolName}' failed with unknown error: ` + error);
     throw new McpError(
       ErrorCode.InternalError,
-      'Tool execution failed with unknown error'
+      "Tool execution failed with unknown error"
     );
   }
 
@@ -34,22 +34,22 @@ export class ErrorHandler {
    */
   static handleResourceError(error: unknown, uri: string): never {
     if (error instanceof McpError) {
-      logger.error(`Resource '${uri}' failed:`, error.message);
+      logError(`Resource '${uri}' failed: ` + error.message);
       throw error;
     }
 
     if (error instanceof Error) {
-      logger.error(`Resource '${uri}' failed:`, error.message);
+      logError(`Resource '${uri}' failed: ` + error.message);
       throw new McpError(
         ErrorCode.InternalError,
         `Resource access failed: ${error.message}`
       );
     }
 
-    logger.error(`Resource '${uri}' failed with unknown error:`, error);
+    logError(`Resource '${uri}' failed with unknown error: ` + error);
     throw new McpError(
       ErrorCode.InternalError,
-      'Resource access failed with unknown error'
+      "Resource access failed with unknown error"
     );
   }
 
@@ -58,22 +58,22 @@ export class ErrorHandler {
    */
   static handlePromptError(error: unknown, promptName: string): never {
     if (error instanceof McpError) {
-      logger.error(`Prompt '${promptName}' failed:`, error.message);
+      logError(`Prompt '${promptName}' failed: ` + error.message);
       throw error;
     }
 
     if (error instanceof Error) {
-      logger.error(`Prompt '${promptName}' failed:`, error.message);
+      logError(`Prompt '${promptName}' failed: ` + error.message);
       throw new McpError(
         ErrorCode.InternalError,
         `Prompt execution failed: ${error.message}`
       );
     }
 
-    logger.error(`Prompt '${promptName}' failed with unknown error:`, error);
+    logError(`Prompt '${promptName}' failed with unknown error: ` + error);
     throw new McpError(
       ErrorCode.InternalError,
-      'Prompt execution failed with unknown error'
+      "Prompt execution failed with unknown error"
     );
   }
 
@@ -82,22 +82,22 @@ export class ErrorHandler {
    */
   static handleServiceError(error: unknown, serviceName: string): never {
     if (error instanceof McpError) {
-      logger.error(`Service '${serviceName}' failed:`, error.message);
+      logError(`Service '${serviceName}' failed: ` + error.message);
       throw error;
     }
 
     if (error instanceof Error) {
-      logger.error(`Service '${serviceName}' failed:`, error.message);
+      logError(`Service '${serviceName}' failed: ` + error.message);
       throw new McpError(
         ErrorCode.InternalError,
         `Service operation failed: ${error.message}`
       );
     }
 
-    logger.error(`Service '${serviceName}' failed with unknown error:`, error);
+    logError(`Service '${serviceName}' failed with unknown error: ` + error);
     throw new McpError(
       ErrorCode.InternalError,
-      'Service operation failed with unknown error'
+      "Service operation failed with unknown error"
     );
   }
 
@@ -106,22 +106,22 @@ export class ErrorHandler {
    */
   static handleServerError(error: unknown, context: string): never {
     if (error instanceof McpError) {
-      logger.error(`Server error in ${context}:`, error.message);
+      logError(`Server error in ${context}: ` + error.message);
       throw error;
     }
 
     if (error instanceof Error) {
-      logger.error(`Server error in ${context}:`, error.message);
+      logError(`Server error in ${context}: ` + error.message);
       throw new McpError(
         ErrorCode.InternalError,
         `Server operation failed: ${error.message}`
       );
     }
 
-    logger.error(`Server error in ${context} with unknown error:`, error);
+    logError(`Server error in ${context} with unknown error: ` + error);
     throw new McpError(
       ErrorCode.InternalError,
-      'Server operation failed with unknown error'
+      "Server operation failed with unknown error"
     );
   }
 
@@ -153,7 +153,10 @@ export class ErrorHandler {
    * Create a method not found error
    */
   static createMethodNotFoundError(method: string): McpError {
-    return new McpError(ErrorCode.MethodNotFound, `Method '${method}' not found`);
+    return new McpError(
+      ErrorCode.MethodNotFound,
+      `Method '${method}' not found`
+    );
   }
 
   /**
@@ -198,10 +201,10 @@ export class ErrorHandler {
    */
   static logAndRethrow(error: unknown, context: string): never {
     if (error instanceof Error) {
-      logger.error(`Error in ${context}:`, error.message);
-      logger.debug('Stack trace:', error.stack);
+      logError(`Error in ${context}: ` + error.message);
+      logInfo("Stack trace: " + error.stack);
     } else {
-      logger.error(`Unknown error in ${context}:`, error);
+      logError(`Unknown error in ${context}: ` + error);
     }
     throw error;
   }
@@ -209,7 +212,10 @@ export class ErrorHandler {
   /**
    * Convert any error to McpError
    */
-  static toMcpError(error: unknown, defaultMessage = 'Unknown error occurred'): McpError {
+  static toMcpError(
+    error: unknown,
+    defaultMessage = "Unknown error occurred"
+  ): McpError {
     if (error instanceof McpError) {
       return error;
     }
@@ -235,9 +241,9 @@ export class ErrorHandler {
     if (error instanceof Error) {
       return error.message;
     }
-    if (typeof error === 'string') {
+    if (typeof error === "string") {
       return error;
     }
-    return 'Unknown error occurred';
+    return "Unknown error occurred";
   }
-} 
+}

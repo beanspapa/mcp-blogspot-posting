@@ -8,7 +8,7 @@ import {
   GetPromptResult,
   ListPromptsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { logger } from "../utils/logger.js";
+import { logInfo, logWarning, logError } from "../utils/logger.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 import { Validator } from "../utils/validation.js";
 
@@ -53,7 +53,7 @@ export class PromptManager {
       };
 
       this.prompts.set(config.name, entry);
-      logger.info(`Prompt '${config.name}' registered successfully`);
+      logInfo(`Prompt '${config.name}' registered successfully`);
     } catch (error) {
       ErrorHandler.handlePromptError(error, config.name);
     }
@@ -65,9 +65,9 @@ export class PromptManager {
   unregisterPrompt(name: string): boolean {
     const deleted = this.prompts.delete(name);
     if (deleted) {
-      logger.info(`Prompt '${name}' unregistered successfully`);
+      logInfo(`Prompt '${name}' unregistered successfully`);
     } else {
-      logger.warn(`Prompt '${name}' not found for unregistration`);
+      logWarning(`Prompt '${name}' not found for unregistration`);
     }
     return deleted;
   }
@@ -140,7 +140,9 @@ export class PromptManager {
         metadata: context?.metadata,
       };
 
-      logger.debug(`Executing prompt '${name}' with params:`, params);
+      logInfo(
+        `Executing prompt '${name}' with params: ` + JSON.stringify(params)
+      );
 
       // Execute the prompt
       result = await entry.config.handler(params, executionContext);
@@ -149,7 +151,7 @@ export class PromptManager {
       entry.usageCount++;
       entry.lastUsed = new Date();
 
-      logger.debug(`Prompt '${name}' executed successfully`);
+      logInfo(`Prompt '${name}' executed successfully`);
 
       // Convert to MCP format
       return {
@@ -159,11 +161,11 @@ export class PromptManager {
     } catch (err) {
       error = err instanceof Error ? err : new Error(String(err));
       entry.errorCount++;
-      logger.error(`Prompt '${name}' execution failed:`, error.message);
+      logError(`Prompt '${name}' execution failed: ` + error.message);
       ErrorHandler.handlePromptError(error, name);
     } finally {
       const executionTime = Date.now() - startTime;
-      logger.debug(`Prompt '${name}' execution time: ${executionTime}ms`);
+      logInfo(`Prompt '${name}' execution time: ${executionTime}ms`);
     }
   }
 
@@ -272,7 +274,7 @@ export class PromptManager {
   clearPrompts(): void {
     const count = this.prompts.size;
     this.prompts.clear();
-    logger.info(`Cleared ${count} prompts`);
+    logInfo(`Cleared ${count} prompts`);
   }
 
   /**

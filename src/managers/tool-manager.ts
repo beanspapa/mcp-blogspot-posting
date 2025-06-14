@@ -9,7 +9,7 @@ import {
   CallToolResult,
   ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { logger } from "../utils/logger.js";
+import { logInfo, logWarning, logError } from "../utils/logger.js";
 import { ErrorHandler } from "../utils/error-handler.js";
 import { Validator } from "../utils/validation.js";
 import GoogleAuth from "../lib/googleAuth.js";
@@ -48,7 +48,7 @@ export class ToolManager {
       };
 
       this.tools.set(config.name, entry);
-      logger.info(`Tool '${config.name}' registered successfully`);
+      logInfo(`Tool '${config.name}' registered successfully`);
     } catch (error) {
       ErrorHandler.handleToolError(error, config.name);
     }
@@ -60,9 +60,9 @@ export class ToolManager {
   unregisterTool(name: string): boolean {
     const deleted = this.tools.delete(name);
     if (deleted) {
-      logger.info(`Tool '${name}' unregistered successfully`);
+      logInfo(`Tool '${name}' unregistered successfully`);
     } else {
-      logger.warn(`Tool '${name}' not found for unregistration`);
+      logWarning(`Tool '${name}' not found for unregistration`);
     }
     return deleted;
   }
@@ -159,7 +159,10 @@ export class ToolManager {
         metadata: context?.metadata,
       };
 
-      logger.debug(`Executing tool '${name}' with params:`, validatedParams);
+      logInfo(
+        `Executing tool '${name}' with params: ` +
+          JSON.stringify(validatedParams)
+      );
 
       // Execute the tool
       result = await entry.config.handler(validatedParams, executionContext);
@@ -168,16 +171,16 @@ export class ToolManager {
       entry.usageCount++;
       entry.lastUsed = new Date();
 
-      logger.debug(`Tool '${name}' executed successfully`);
+      logInfo(`Tool '${name}' executed successfully`);
       return result;
     } catch (err) {
       error = err instanceof Error ? err : new Error(String(err));
       entry.errorCount++;
-      logger.error(`Tool '${name}' execution failed:`, error.message);
+      logError(`Tool '${name}' execution failed: ` + error.message);
       ErrorHandler.handleToolError(error, name);
     } finally {
       const executionTime = Date.now() - startTime;
-      logger.debug(`Tool '${name}' execution time: ${executionTime}ms`);
+      logInfo(`Tool '${name}' execution time: ${executionTime}ms`);
     }
   }
 
@@ -230,7 +233,7 @@ export class ToolManager {
   clearTools(): void {
     const count = this.tools.size;
     this.tools.clear();
-    logger.info(`Cleared ${count} tools`);
+    logInfo(`Cleared ${count} tools`);
   }
 
   /**
@@ -338,7 +341,10 @@ export class ToolManager {
           if (!blogId) {
             return {
               content: [
-                { type: "text", text: `서버에 블로그 ID(BLOG_ID)가 설정되어 있지 않습니다.` },
+                {
+                  type: "text",
+                  text: `서버에 블로그 ID(BLOG_ID)가 설정되어 있지 않습니다.`,
+                },
               ],
               isError: true,
             };
@@ -349,10 +355,7 @@ export class ToolManager {
             labels: params.labels,
             isDraft: params.isDraft === undefined ? true : params.isDraft,
           };
-          const result = await bloggerService.createPost(
-            blogId,
-            postData
-          );
+          const result = await bloggerService.createPost(blogId, postData);
           return {
             content: [
               {
@@ -408,7 +411,10 @@ export class ToolManager {
           if (!blogId) {
             return {
               content: [
-                { type: "text", text: `서버에 블로그 ID(BLOG_ID)가 설정되어 있지 않습니다.` },
+                {
+                  type: "text",
+                  text: `서버에 블로그 ID(BLOG_ID)가 설정되어 있지 않습니다.`,
+                },
               ],
               isError: true,
             };
@@ -418,10 +424,7 @@ export class ToolManager {
             ...p,
             isDraft: p.isDraft === undefined ? true : p.isDraft,
           }));
-          const results = await bloggerService.batchCreatePosts(
-            blogId,
-            posts
-          );
+          const results = await bloggerService.batchCreatePosts(blogId, posts);
           const successCount = results.filter((r: any) => r.success).length;
           const failCount = results.length - successCount;
           return {

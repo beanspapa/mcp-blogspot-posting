@@ -23,9 +23,7 @@ async function testBlogspotMCPServer() {
     );
   }
   if (!env.BLOG_URL) {
-    throw new Error(
-      "테스트 실행 전 .env에 BLOG_URL을 반드시 지정하세요."
-    );
+    throw new Error("테스트 실행 전 .env에 BLOG_URL을 반드시 지정하세요.");
   }
 
   // MCP 서버 실행 및 연결
@@ -37,6 +35,26 @@ async function testBlogspotMCPServer() {
   });
   await client.connect(transport);
   console.log("[서버 연결 성공] MCP blogspot server");
+
+  // === 툴 리스트 요청을 가장 먼저 실행 ===
+  console.log("[tools/list 요청]");
+  const toolsList = await client.request(
+    {
+      method: "tools/list",
+      params: {},
+    },
+    z.object({
+      tools: z.array(
+        z.object({
+          name: z.string(),
+          description: z.string(),
+          inputSchema: z.any(),
+        })
+      ),
+    })
+  );
+  console.log("[tools/list 결과]", toolsList);
+  // === 툴 리스트 요청 끝 ===
 
   // blog-post Tool 호출 예시 (blogId 입력 제거)
   console.log("[blog-post Tool 호출]");

@@ -1,6 +1,6 @@
-import { IService } from '../types/config.js';
-import { logger } from '../utils/logger.js';
-import { ErrorHandler } from '../utils/error-handler.js';
+import { IService } from "../types/config.js";
+import { logInfo, logWarning, logError } from "../utils/logger.js";
+import { ErrorHandler } from "../utils/error-handler.js";
 
 /**
  * Abstract base service class
@@ -29,11 +29,11 @@ export abstract class BaseService implements IService {
     }
 
     try {
-      logger.info(`Initializing service '${this.name}'...`);
+      logInfo(`Initializing service '${this.name}'...`);
       this.validateConfig();
       await this.doInitialize();
       this.isInitialized = true;
-      logger.info(`Service '${this.name}' initialized successfully`);
+      logInfo(`Service '${this.name}' initialized successfully`);
     } catch (error) {
       ErrorHandler.handleServiceError(error, this.name);
     }
@@ -45,10 +45,10 @@ export abstract class BaseService implements IService {
     }
 
     try {
-      logger.info(`Cleaning up service '${this.name}'...`);
+      logInfo(`Cleaning up service '${this.name}'...`);
       await this.doCleanup();
       this.isInitialized = false;
-      logger.info(`Service '${this.name}' cleaned up successfully`);
+      logInfo(`Service '${this.name}' cleaned up successfully`);
     } catch (error) {
       ErrorHandler.handleServiceError(error, this.name);
     }
@@ -61,7 +61,14 @@ export abstract class BaseService implements IService {
     // Override in subclasses if needed
   }
 
-  protected log(level: 'error' | 'warn' | 'info' | 'debug', message: string, meta?: any): void {
-    logger[level](`[${this.name}] ${message}`, meta);
+  protected log(
+    level: "error" | "warn" | "info" | "debug",
+    message: string,
+    meta?: any
+  ): void {
+    const msg = `[${this.name}] ${message}`;
+    if (level === "error") logError(msg);
+    else if (level === "warn") logWarning(msg);
+    else logInfo(msg);
   }
-} 
+}

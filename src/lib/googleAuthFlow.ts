@@ -3,6 +3,7 @@ import open from "open"; // npm install open 필요
 import GoogleAuth from "./googleAuth.js";
 import { TokenManager } from "./tokenManager.js";
 import { Config } from "../types/bloggerTypes.js";
+import { logInfo } from "../utils/logger.js";
 
 /**
  * Google OAuth 인증 플로우를 실행한다.
@@ -54,7 +55,7 @@ export async function runGoogleAuthFlow(googleAuth: GoogleAuth): Promise<void> {
       googleAuth.oauth2Client.redirectUri = redirectUri;
       const authUrl = googleAuth.generateAuthUrl();
       open(authUrl); // 브라우저 자동 오픈
-      console.log(`브라우저에서 인증을 진행하세요: ${authUrl}`);
+      logInfo(`브라우저에서 인증을 진행하세요: ${authUrl}`);
     });
   });
 }

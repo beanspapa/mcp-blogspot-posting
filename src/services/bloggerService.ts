@@ -1,5 +1,12 @@
-import { google } from 'googleapis';
-import { BlogPost, BlogInfo, PostResponse, BatchPostResult, PostListOptions } from '../types/bloggerTypes';
+import { google } from "googleapis";
+import {
+  BlogPost,
+  BlogInfo,
+  PostResponse,
+  BatchPostResult,
+  PostListOptions,
+} from "../types/bloggerTypes";
+import { logInfo, logError } from "../utils/logger.js";
 
 class BloggerService {
   private authClient: any;
@@ -8,8 +15,8 @@ class BloggerService {
   constructor(authClient: any) {
     this.authClient = authClient;
     this.blogger = google.blogger({
-      version: 'v3',
-      auth: authClient
+      version: "v3",
+      auth: authClient,
     });
   }
 
@@ -17,11 +24,11 @@ class BloggerService {
   async getBlogsList(): Promise<BlogInfo[]> {
     try {
       const response = await this.blogger.blogs.listByUser({
-        userId: 'self'
+        userId: "self",
       });
       return response.data.items || [];
     } catch (error) {
-      console.error('블로그 목록 조회 오류:', error);
+      logError("블로그 목록 조회 오류: " + error);
       throw error;
     }
   }
@@ -30,11 +37,11 @@ class BloggerService {
   async getBlogInfo(blogId: string): Promise<BlogInfo> {
     try {
       const response = await this.blogger.blogs.get({
-        blogId: blogId
+        blogId: blogId,
       });
       return response.data;
     } catch (error) {
-      console.error('블로그 정보 조회 오류:', error);
+      logError("블로그 정보 조회 오류: " + error);
       throw error;
     }
   }
@@ -43,11 +50,11 @@ class BloggerService {
   async getBlogByUrl(blogUrl: string): Promise<BlogInfo> {
     try {
       const response = await this.blogger.blogs.getByUrl({
-        url: blogUrl
+        url: blogUrl,
       });
       return response.data;
     } catch (error) {
-      console.error('URL로 블로그 조회 오류:', error);
+      logError("URL로 블로그 조회 오류: " + error);
       throw error;
     }
   }
@@ -56,7 +63,7 @@ class BloggerService {
   async getBlogIdByUrl(blogUrl: string): Promise<string> {
     const info = await this.getBlogByUrl(blogUrl);
     if (!info || !info.id) {
-      throw new Error('블로그 주소에서 블로그 ID를 찾을 수 없습니다.');
+      throw new Error("블로그 주소에서 블로그 ID를 찾을 수 없습니다.");
     }
     return info.id;
   }
@@ -66,13 +73,13 @@ class BloggerService {
     try {
       const params = {
         blogId: blogId,
-        ...options
+        ...options,
       };
-      
+
       const response = await this.blogger.posts.list(params);
       return response.data;
     } catch (error) {
-      console.error('포스트 목록 조회 오류:', error);
+      logError("포스트 목록 조회 오류: " + error);
       throw error;
     }
   }
@@ -83,14 +90,14 @@ class BloggerService {
       const post = {
         title: postData.title,
         content: postData.content,
-        labels: postData.labels || []
+        labels: postData.labels || [],
       };
 
       const insertParams: any = {
         blogId: blogId,
         resource: post,
         fetchBody: true,
-        fetchImages: true
+        fetchImages: true,
       };
 
       // isDraft는 별도 파라미터로 전달
@@ -100,35 +107,39 @@ class BloggerService {
 
       const response = await this.blogger.posts.insert(insertParams);
 
-      console.log('포스트 작성 성공:', response.data.url);
+      logInfo("포스트 작성 성공: " + response.data.url);
       return response.data;
     } catch (error) {
-      console.error('포스트 작성 오류:', error);
+      logError("포스트 작성 오류: " + error);
       throw error;
     }
   }
 
   // 포스트 수정
-  async updatePost(blogId: string, postId: string, postData: BlogPost): Promise<PostResponse> {
+  async updatePost(
+    blogId: string,
+    postId: string,
+    postData: BlogPost
+  ): Promise<PostResponse> {
     try {
       const post = {
         id: postId,
         title: postData.title,
         content: postData.content,
         labels: postData.labels || [],
-        ...postData.additionalFields
+        ...postData.additionalFields,
       };
 
       const response = await this.blogger.posts.update({
         blogId: blogId,
         postId: postId,
-        resource: post
+        resource: post,
       });
 
-      console.log('포스트 수정 성공:', response.data.url);
+      logInfo("포스트 수정 성공: " + response.data.url);
       return response.data;
     } catch (error) {
-      console.error('포스트 수정 오류:', error);
+      logError("포스트 수정 오류: " + error);
       throw error;
     }
   }
@@ -138,12 +149,12 @@ class BloggerService {
     try {
       await this.blogger.posts.delete({
         blogId: blogId,
-        postId: postId
+        postId: postId,
       });
-      console.log('포스트 삭제 성공');
+      logInfo("포스트 삭제 성공");
       return true;
     } catch (error) {
-      console.error('포스트 삭제 오류:', error);
+      logError("포스트 삭제 오류: " + error);
       throw error;
     }
   }
@@ -152,24 +163,31 @@ class BloggerService {
   async saveDraft(blogId: string, postData: BlogPost): Promise<PostResponse> {
     const draftData = {
       ...postData,
-      isDraft: true
+      isDraft: true,
     };
     return await this.createPost(blogId, draftData);
   }
 
   // 예약 발행 (미래 날짜로 발행)
-  async schedulePost(blogId: string, postData: BlogPost, publishDate: Date): Promise<PostResponse> {
+  async schedulePost(
+    blogId: string,
+    postData: BlogPost,
+    publishDate: Date
+  ): Promise<PostResponse> {
     const scheduledData = {
       ...postData,
-      published: publishDate.toISOString()
+      published: publishDate.toISOString(),
     };
     return await this.createPost(blogId, scheduledData);
   }
 
   // 배치 포스트 작성 (여러 포스트 한 번에)
-  async batchCreatePosts(blogId: string, postsArray: BlogPost[]): Promise<BatchPostResult[]> {
+  async batchCreatePosts(
+    blogId: string,
+    postsArray: BlogPost[]
+  ): Promise<BatchPostResult[]> {
     const results = [];
-    
+
     for (const postData of postsArray) {
       try {
         const result = await this.createPost(blogId, postData);
@@ -177,38 +195,40 @@ class BloggerService {
           success: true,
           postId: result.id,
           url: result.url,
-          title: postData.title
+          title: postData.title,
         });
-        
+
         // API 제한을 위한 딜레이 (1초)
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (error: any) {
         results.push({
           success: false,
           error: error.message,
-          title: postData.title
+          title: postData.title,
         });
       }
     }
-    
+
     return results;
   }
 
   // API 재시도 로직이 포함된 요청
-  async retryApiCall(apiCall: () => Promise<any>, maxRetries: number = 3): Promise<any> {
+  async retryApiCall(
+    apiCall: () => Promise<any>,
+    maxRetries: number = 3
+  ): Promise<any> {
     for (let i = 0; i < maxRetries; i++) {
       try {
         return await apiCall();
       } catch (error) {
         if (i === maxRetries - 1) throw error;
-        
+
         const delay = Math.pow(2, i) * 1000; // 지수 백오프
-        console.log(`API 호출 실패, ${delay}ms 후 재시도...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        logInfo(`API 호출 실패, ${delay}ms 후 재시도...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
 }
 
-export default BloggerService; 
+export default BloggerService;

@@ -4,11 +4,14 @@ import {
   IResourceListItem,
   IResourceExecutionResult,
   IResourceContext,
-} from '../types/resource.js';
-import { ReadResourceResult, ListResourcesResult } from '@modelcontextprotocol/sdk/types.js';
-import { logger } from '../utils/logger.js';
-import { ErrorHandler } from '../utils/error-handler.js';
-import { Validator } from '../utils/validation.js';
+} from "../types/resource.js";
+import {
+  ReadResourceResult,
+  ListResourcesResult,
+} from "@modelcontextprotocol/sdk/types.js";
+import { logInfo, logWarning, logError } from "../utils/logger.js";
+import { ErrorHandler } from "../utils/error-handler.js";
+import { Validator } from "../utils/validation.js";
 
 /**
  * Resource manager class for registering and accessing resources
@@ -40,7 +43,7 @@ export class ResourceManager {
       };
 
       this.resources.set(config.name, entry);
-      logger.info(`Resource '${config.name}' registered successfully`);
+      logInfo(`Resource '${config.name}' registered successfully`);
     } catch (error) {
       ErrorHandler.handleResourceError(error, config.name);
     }
@@ -52,9 +55,9 @@ export class ResourceManager {
   unregisterResource(name: string): boolean {
     const deleted = this.resources.delete(name);
     if (deleted) {
-      logger.info(`Resource '${name}' unregistered successfully`);
+      logInfo(`Resource '${name}' unregistered successfully`);
     } else {
-      logger.warn(`Resource '${name}' not found for unregistration`);
+      logWarning(`Resource '${name}' not found for unregistration`);
     }
     return deleted;
   }
@@ -85,7 +88,9 @@ export class ResourceManager {
    * List all resources (MCP protocol)
    */
   async listResources(): Promise<ListResourcesResult> {
-    const resources: IResourceListItem[] = Array.from(this.resources.values()).map((entry) => ({
+    const resources: IResourceListItem[] = Array.from(
+      this.resources.values()
+    ).map((entry) => ({
       uri: entry.config.uri,
       name: entry.config.name,
       description: entry.config.description,
@@ -98,11 +103,14 @@ export class ResourceManager {
   /**
    * Read a resource
    */
-  async readResource(uri: string, context?: IResourceContext): Promise<ReadResourceResult> {
+  async readResource(
+    uri: string,
+    context?: IResourceContext
+  ): Promise<ReadResourceResult> {
     // Find resource by URI or name
     const entry = this.findResourceByUri(uri);
     if (!entry) {
-      throw ErrorHandler.createNotFoundError('Resource', uri);
+      throw ErrorHandler.createNotFoundError("Resource", uri);
     }
 
     const startTime = Date.now();
@@ -121,7 +129,7 @@ export class ResourceManager {
         metadata: context?.metadata,
       };
 
-      logger.debug(`Reading resource '${entry.config.name}' from URI: ${uri}`);
+      logInfo(`Reading resource '${entry.config.name}' from URI: ${uri}`);
 
       // Execute the resource handler
       result = await entry.config.handler(parsedUri, executionContext);
@@ -130,16 +138,16 @@ export class ResourceManager {
       entry.accessCount++;
       entry.lastAccessed = new Date();
 
-      logger.debug(`Resource '${entry.config.name}' read successfully`);
+      logInfo(`Resource '${entry.config.name}' read successfully`);
       return result;
     } catch (err) {
       error = err instanceof Error ? err : new Error(String(err));
       entry.errorCount++;
-      logger.error(`Resource '${entry.config.name}' read failed:`, error.message);
+      logError(`Resource '${entry.config.name}' read failed: ` + error.message);
       ErrorHandler.handleResourceError(error, uri);
     } finally {
       const executionTime = Date.now() - startTime;
-      logger.debug(`Resource '${entry.config.name}' read time: ${executionTime}ms`);
+      logInfo(`Resource '${entry.config.name}' read time: ${executionTime}ms`);
     }
   }
 
@@ -175,14 +183,14 @@ export class ResourceManager {
    */
   private matchesUriPattern(uri: string, pattern: string): boolean {
     // Simple pattern matching - can be enhanced for more complex patterns
-    if (!pattern.includes('{') && !pattern.includes('*')) {
+    if (!pattern.includes("{") && !pattern.includes("*")) {
       return uri === pattern;
     }
 
     // Convert pattern to regex
     const regexPattern = pattern
-      .replace(/\{[^}]+\}/g, '([^/]+)') // Replace {param} with capture group
-      .replace(/\*/g, '.*'); // Replace * with .*
+      .replace(/\{[^}]+\}/g, "([^/]+)") // Replace {param} with capture group
+      .replace(/\*/g, ".*"); // Replace * with .*
 
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(uri);
@@ -194,7 +202,7 @@ export class ResourceManager {
   private extractResourceNameFromUri(uri: string): string | undefined {
     try {
       const parsedUri = new URL(uri);
-      const pathParts = parsedUri.pathname.split('/').filter(Boolean);
+      const pathParts = parsedUri.pathname.split("/").filter(Boolean);
       return pathParts[pathParts.length - 1]; // Return last path segment
     } catch {
       return undefined;
@@ -227,7 +235,7 @@ export class ResourceManager {
    */
   getAllResourceStats(): Record<string, IResourceExecutionResult> {
     const stats: Record<string, IResourceExecutionResult> = {};
-    
+
     for (const [name, entry] of this.resources) {
       stats[name] = {
         success: entry.errorCount === 0 || entry.accessCount > entry.errorCount,
@@ -250,7 +258,7 @@ export class ResourceManager {
   clearResources(): void {
     const count = this.resources.size;
     this.resources.clear();
-    logger.info(`Cleared ${count} resources`);
+    logInfo(`Cleared ${count} resources`);
   }
 
   /**
@@ -266,21 +274,23 @@ export class ResourceManager {
    * Validate resource configuration
    */
   private validateResourceConfig(config: IResourceConfig): void {
-    Validator.validateRequired(config.name, 'name');
-    Validator.validateString(config.name, 'name');
-    Validator.validateRequired(config.uri, 'uri');
-    Validator.validateString(config.uri, 'uri');
-    Validator.validateRequired(config.handler, 'handler');
+    Validator.validateRequired(config.name, "name");
+    Validator.validateString(config.name, "name");
+    Validator.validateRequired(config.uri, "uri");
+    Validator.validateString(config.uri, "uri");
+    Validator.validateRequired(config.handler, "handler");
 
-    if (typeof config.handler !== 'function') {
-      throw ErrorHandler.createValidationError('Resource handler must be a function');
+    if (typeof config.handler !== "function") {
+      throw ErrorHandler.createValidationError(
+        "Resource handler must be a function"
+      );
     }
 
     // Validate resource name format (alphanumeric, underscore, hyphen)
     const namePattern = /^[a-zA-Z0-9_-]+$/;
     if (!namePattern.test(config.name)) {
       throw ErrorHandler.createValidationError(
-        'Resource name must contain only alphanumeric characters, underscores, and hyphens'
+        "Resource name must contain only alphanumeric characters, underscores, and hyphens"
       );
     }
 
@@ -289,8 +299,10 @@ export class ResourceManager {
       new URL(config.uri);
     } catch {
       // If it's not a valid URL, check if it's a pattern
-      if (!config.uri.includes('{') && !config.uri.includes('*')) {
-        throw ErrorHandler.createValidationError('Resource URI must be a valid URL or pattern');
+      if (!config.uri.includes("{") && !config.uri.includes("*")) {
+        throw ErrorHandler.createValidationError(
+          "Resource URI must be a valid URL or pattern"
+        );
       }
     }
   }
@@ -312,7 +324,7 @@ export class ResourceManager {
       totalAccesses += entry.accessCount;
       totalErrors += entry.errorCount;
 
-      const service = entry.config.service || 'default';
+      const service = entry.config.service || "default";
       resourcesByService[service] = (resourcesByService[service] || 0) + 1;
     }
 
@@ -323,4 +335,4 @@ export class ResourceManager {
       resourcesByService,
     };
   }
-} 
+}

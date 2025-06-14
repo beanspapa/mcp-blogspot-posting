@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { TokenSet } from "../types/bloggerTypes.js";
+import { logInfo, logError } from "../utils/logger.js";
 
 const TOKENS_FILE = path.join(process.cwd(), ".blogger-tokens.json");
 
@@ -9,9 +10,9 @@ export class TokenManager {
   static saveTokens(tokens: TokenSet): void {
     try {
       fs.writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2));
-      console.log("✅ 토큰이 저장되었습니다.");
+      logInfo("✅ 토큰이 저장되었습니다.");
     } catch (error) {
-      console.error("❌ 토큰 저장 실패:", error);
+      logError("❌ 토큰 저장 실패: " + error);
     }
   }
 
@@ -24,7 +25,7 @@ export class TokenManager {
       }
       return null;
     } catch (error) {
-      console.error("❌ 토큰 로드 실패:", error);
+      logError("❌ 토큰 로드 실패: " + error);
       return null;
     }
   }
@@ -34,10 +35,10 @@ export class TokenManager {
     try {
       if (fs.existsSync(TOKENS_FILE)) {
         fs.unlinkSync(TOKENS_FILE);
-        console.log("✅ 토큰이 삭제되었습니다.");
+        logInfo("✅ 토큰이 삭제되었습니다.");
       }
     } catch (error) {
-      console.error("❌ 토큰 삭제 실패:", error);
+      logError("❌ 토큰 삭제 실패: " + error);
     }
   }
 

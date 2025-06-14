@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { TokenSet } from "../types/bloggerTypes.js";
+import { logInfo, logError } from "../utils/logger.js";
 
 class GoogleAuth {
   public oauth2Client: any;
@@ -8,7 +9,12 @@ class GoogleAuth {
   private scopes: string[];
   public redirectUri?: string;
 
-  constructor({ clientId, clientSecret, scopes, redirectUri }: {
+  constructor({
+    clientId,
+    clientSecret,
+    scopes,
+    redirectUri,
+  }: {
     clientId: string;
     clientSecret: string;
     scopes: string[];
@@ -28,10 +34,10 @@ class GoogleAuth {
     this.oauth2Client.on("tokens", (tokens: any) => {
       if (tokens.refresh_token) {
         // 리프레시 토큰 저장 (실제 프로덕션에서는 데이터베이스에 저장)
-        console.log("리프레시 토큰 업데이트됨");
+        logInfo("리프레시 토큰 업데이트됨");
       }
       // 액세스 토큰 저장
-      console.log("액세스 토큰 업데이트됨");
+      logInfo("액세스 토큰 업데이트됨");
     });
   }
 
@@ -53,7 +59,7 @@ class GoogleAuth {
       this.oauth2Client.setCredentials(tokens);
       return tokens;
     } catch (error) {
-      console.error("토큰 교환 오류:", error);
+      logError("토큰 교환 오류: " + error);
       throw error;
     }
   }
@@ -82,10 +88,10 @@ class GoogleAuth {
       // 새로운 토큰으로 OAuth 클라이언트 업데이트
       this.oauth2Client.setCredentials(credentials);
 
-      console.log("✅ 토큰이 성공적으로 갱신되었습니다.");
+      logInfo("✅ 토큰이 성공적으로 갱신되었습니다.");
       return newTokens;
     } catch (error) {
-      console.error("❌ 토큰 갱신 실패:", error);
+      logError("❌ 토큰 갱신 실패: " + error);
       throw new Error("토큰 갱신에 실패했습니다. 다시 인증이 필요합니다.");
     }
   }
