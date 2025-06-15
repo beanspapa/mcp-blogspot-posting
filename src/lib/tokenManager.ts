@@ -7,9 +7,9 @@ const TOKENS_FILE = path.join(process.cwd(), ".blogger-tokens.json");
 
 export class TokenManager {
   // 토큰 저장
-  static saveTokens(tokens: TokenSet): void {
+  static async saveTokens(tokens: TokenSet): Promise<void> {
     try {
-      fs.writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2));
+      await fs.promises.writeFile(TOKENS_FILE, JSON.stringify(tokens, null, 2));
       logInfo("✅ 토큰이 저장되었습니다.");
     } catch (error) {
       logError("❌ 토큰 저장 실패: " + error);
@@ -17,13 +17,11 @@ export class TokenManager {
   }
 
   // 토큰 로드
-  static loadTokens(): TokenSet | null {
+  static async loadTokens(): Promise<TokenSet | null> {
     try {
-      if (fs.existsSync(TOKENS_FILE)) {
-        const tokenData = fs.readFileSync(TOKENS_FILE, "utf8");
-        return JSON.parse(tokenData);
-      }
-      return null;
+      await fs.promises.access(TOKENS_FILE);
+      const tokenData = await fs.promises.readFile(TOKENS_FILE, "utf8");
+      return JSON.parse(tokenData);
     } catch (error) {
       logError("❌ 토큰 로드 실패: " + error);
       return null;
@@ -31,20 +29,19 @@ export class TokenManager {
   }
 
   // 토큰 삭제
-  static clearTokens(): void {
+  static async clearTokens(): Promise<void> {
     try {
-      if (fs.existsSync(TOKENS_FILE)) {
-        fs.unlinkSync(TOKENS_FILE);
-        logInfo("✅ 토큰이 삭제되었습니다.");
-      }
+      await fs.promises.access(TOKENS_FILE);
+      await fs.promises.unlink(TOKENS_FILE);
+      logInfo("✅ 토큰이 삭제되었습니다.");
     } catch (error) {
       logError("❌ 토큰 삭제 실패: " + error);
     }
   }
 
   // 토큰 유효성 확인
-  static hasValidTokens(): boolean {
-    const tokens = this.loadTokens();
+  static async hasValidTokens(): Promise<boolean> {
+    const tokens = await this.loadTokens();
     return tokens !== null && !!tokens.access_token;
   }
 
@@ -62,9 +59,9 @@ export class TokenManager {
   }
 
   // 토큰 상태 확인 및 분류
-  static getTokenStatus(
+  static async getTokenStatus(
     tokens: TokenSet | null
-  ): "valid" | "needs_refresh" | "expired" | "missing" {
+  ): Promise<"valid" | "needs_refresh" | "expired" | "missing"> {
     if (!tokens) return "missing";
     if (!tokens.access_token) return "missing";
 

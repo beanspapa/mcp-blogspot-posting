@@ -1,6 +1,6 @@
 {
-  "name": "mcp-server-boilerplate",
-  "version": "1.0.0",
+  "name": "mcp-blogspot-posting",
+  "version": "1.0.1",
   "description": "A comprehensive boilerplate for building MCP (Model Context Protocol) servers with TypeScript",
   "main": "dist/server.js",
   "type": "module",
@@ -36,7 +36,6 @@
     "@modelcontextprotocol/sdk": "^1.12.0",
     "dotenv": "^16.3.1",
     "googleapis": "^127.0.0",
-    "mcps-logger": "^1.0.0",
     "open": "^9.0.0",
     "zod": "^3.25.32"
   },

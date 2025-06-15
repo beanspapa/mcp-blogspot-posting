@@ -18,6 +18,44 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { setLoggerServer } from "./utils/logger.js";
 
+// === stdout/stderr flush 후 안전 종료 유틸리티 ===
+function flushAndExit(code = 1) {
+  let pending = 2;
+  function done() {
+    if (--pending === 0) process.exit(code);
+  }
+  process.stdout.write("", done);
+  process.stderr.write("", done);
+  setTimeout(() => process.exit(code), 100);
+}
+
+// === 글로벌 예외 핸들러 추가 ===
+process.on("uncaughtException", (err) => {
+  logError(`[UNCAUGHT EXCEPTION] ${err.stack || err}`);
+  flushAndExit(1);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  logError(`[UNHANDLED REJECTION] ${reason}`);
+  flushAndExit(1);
+});
+// === SIGPIPE, EPIPE 등 파이프 오류 핸들링 ===
+process.on("SIGPIPE", () => {
+  logError("SIGPIPE received (broken pipe)");
+  flushAndExit(1);
+});
+process.stdout.on("error", (err) => {
+  if (err.code === "EPIPE") {
+    logError("stdout EPIPE (broken pipe)");
+    flushAndExit(1);
+  }
+});
+process.stderr.on("error", (err) => {
+  if (err.code === "EPIPE") {
+    logError("stderr EPIPE (broken pipe)");
+    flushAndExit(1);
+  }
+});
+
 // MCP 서버 인스턴스 생성
 const server = new Server(
   {
@@ -45,12 +83,12 @@ server.setRequestHandler(ServerInfoRequestSchema, async () => {
 
 // MCP Tool 핸들러 등록 함수와 분리된 초기화 함수
 async function ensureValidToken(googleAuth: any) {
-  let tokens = TokenManager.loadTokens();
+  let tokens = await TokenManager.loadTokens();
   if (!tokens || !tokens.access_token) {
     // 토큰 없음 → 인증 플로우
     logInfo("Google 인증이 필요합니다. 브라우저에서 인증을 진행합니다...");
     await runGoogleAuthFlow(googleAuth);
-    tokens = TokenManager.loadTokens();
+    tokens = await TokenManager.loadTokens();
     if (!tokens || !tokens.access_token) {
       throw new Error("인증 플로우 실패: 토큰을 받을 수 없습니다.");
     }
@@ -64,14 +102,14 @@ async function ensureValidToken(googleAuth: any) {
           const { credentials } = await googleAuth
             .getAuthClient()
             .refreshAccessToken();
-          TokenManager.saveTokens(credentials);
+          await TokenManager.saveTokens(credentials);
           tokens = credentials;
           logInfo("access_token이 갱신되었습니다.");
         } catch (e) {
           // refresh_token도 만료/폐기 → 인증 플로우 재실행
           logWarning("refresh_token 만료/폐기. 브라우저 인증 재실행...");
           await runGoogleAuthFlow(googleAuth);
-          tokens = TokenManager.loadTokens();
+          tokens = await TokenManager.loadTokens();
           if (!tokens || !tokens.access_token) {
             throw new Error("인증 플로우 실패: 토큰을 받을 수 없습니다.");
           }
@@ -80,7 +118,7 @@ async function ensureValidToken(googleAuth: any) {
         // refresh_token 없음 → 인증 플로우 재실행
         logWarning("refresh_token 없음. 브라우저 인증 재실행...");
         await runGoogleAuthFlow(googleAuth);
-        tokens = TokenManager.loadTokens();
+        tokens = await TokenManager.loadTokens();
         if (!tokens || !tokens.access_token) {
           throw new Error("인증 플로우 실패: 토큰을 받을 수 없습니다.");
         }
@@ -103,7 +141,9 @@ async function prepareBloggerService() {
     process.exit(1);
   }
   // credentials 로딩 (존재 및 파싱 예외 처리)
-  if (!fs.existsSync(credentialPath)) {
+  try {
+    await fs.promises.access(credentialPath);
+  } catch {
     logError(
       `\n[FATAL] 필수 파일 누락: ${credentialPath}\n` +
         "설명: Google API 인증을 위한 client_secret JSON 파일이 필요합니다. Google Cloud Console에서 OAuth 클라이언트 ID를 생성해 다운로드하세요.\n" +
@@ -115,7 +155,9 @@ async function prepareBloggerService() {
   }
   let credentials;
   try {
-    credentials = JSON.parse(fs.readFileSync(credentialPath, "utf8"));
+    credentials = JSON.parse(
+      await fs.promises.readFile(credentialPath, "utf8")
+    );
   } catch (e: any) {
     logError(
       `\n[FATAL] client_secret JSON 파싱 실패: ${credentialPath}\n` +
@@ -136,14 +178,15 @@ async function prepareBloggerService() {
   const BLOG_ID_CACHE_PATH = path.resolve(process.cwd(), ".blog_id_cache.json");
   let blogId: string | null = null;
   // blogId 캐시 우선
-  if (fs.existsSync(BLOG_ID_CACHE_PATH)) {
-    try {
-      const cache = JSON.parse(fs.readFileSync(BLOG_ID_CACHE_PATH, "utf8"));
-      if (cache.blogUrl === blogUrl && cache.blogId) {
-        blogId = cache.blogId;
-      }
-    } catch (e) {}
-  }
+  try {
+    await fs.promises.access(BLOG_ID_CACHE_PATH);
+    const cache = JSON.parse(
+      await fs.promises.readFile(BLOG_ID_CACHE_PATH, "utf8")
+    );
+    if (cache.blogUrl === blogUrl && cache.blogId) {
+      blogId = cache.blogId;
+    }
+  } catch (e) {}
   const bloggerService = new BloggerService(googleAuth.getAuthClient());
   // 캐시 없으면 새로 조회 (항상 토큰 세팅 후 호출)
   if (!blogId) {
@@ -151,7 +194,7 @@ async function prepareBloggerService() {
       const info = await bloggerService.getBlogByUrl(blogUrl);
       if (!info || !info.id) throw new Error("블로그 ID 조회 실패");
       blogId = info.id;
-      fs.writeFileSync(
+      await fs.promises.writeFile(
         BLOG_ID_CACHE_PATH,
         JSON.stringify({ blogUrl, blogId }, null, 2)
       );
