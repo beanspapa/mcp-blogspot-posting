@@ -17,6 +17,8 @@ import { TokenManager } from "../lib/tokenManager.js";
 import BloggerService from "../services/bloggerService.js";
 import { z } from "zod";
 import { BlogPost } from "../types/bloggerTypes.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { blogPostInputSchema, blogBatchPostInputSchema } from "../schemas/blogger.js";
 
 /**
  * Tool manager class for registering and executing tools
@@ -95,31 +97,11 @@ export class ToolManager {
   async listTools(): Promise<ListToolsResult> {
     const tools: IToolListItem[] = Array.from(this.tools.values()).map(
       (entry) => {
-        const shape = entry.config.inputSchema._def.shape();
-        const properties = Object.keys(shape).reduce(
-          (acc, key) => {
-            const field = shape[key];
-            acc[key] = {
-              type: field._def.typeName,
-              description: field.description,
-            };
-            return acc;
-          },
-          {} as Record<string, any>
-        );
-
-        const required = Object.keys(properties).filter(
-          (key) => !shape[key].isOptional()
-        );
-
+        // MCP 프로토콜 반환 시에만 JSON Schema로 변환
         return {
           name: entry.config.name,
           description: entry.config.description,
-          inputSchema: {
-            type: "object",
-            properties,
-            required: required.length > 0 ? required : undefined,
-          },
+          inputSchema: zodToJsonSchema(entry.config.inputSchema),
         };
       }
     );
@@ -316,15 +298,10 @@ export class ToolManager {
     this.registerTool({
       name: "blog-post",
       description: "Google Blogger에 새 포스트를 작성합니다.",
-      inputSchema: z.object({
-        title: z.string().describe("포스트 제목"),
-        content: z.string().describe("포스트 내용(HTML)"),
-        labels: z.array(z.string()).optional().describe("라벨 목록"),
-        isDraft: z.boolean().optional().describe("초안 여부"),
-      }),
+      inputSchema: blogPostInputSchema,
       handler: async (params) => {
         // 인증 토큰 확인
-        const tokens = TokenManager.loadTokens();
+        const tokens = await TokenManager.loadTokens();
         if (!tokens || !tokens.access_token) {
           return {
             content: [
@@ -381,20 +358,9 @@ export class ToolManager {
     this.registerTool({
       name: "blog-batch-post",
       description: "Google Blogger에 여러 포스트를 한 번에 작성합니다.",
-      inputSchema: z.object({
-        posts: z
-          .array(
-            z.object({
-              title: z.string(),
-              content: z.string(),
-              labels: z.array(z.string()).optional(),
-              isDraft: z.boolean().optional(),
-            })
-          )
-          .describe("포스트 배열"),
-      }),
+      inputSchema: blogBatchPostInputSchema,
       handler: async (params) => {
-        const tokens = TokenManager.loadTokens();
+        const tokens = await TokenManager.loadTokens();
         if (!tokens || !tokens.access_token) {
           return {
             content: [

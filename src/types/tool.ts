@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { blogPostInputSchema, blogBatchPostInputSchema } from "../schemas/blogger";
 
 /**
  * Tool configuration interface
@@ -77,11 +78,7 @@ export interface IToolListItem {
   [key: string]: any; // Index signature for compatibility
   name: string;
   description?: string;
-  inputSchema: {
-    type: "object";
-    properties: Record<string, any>;
-    required?: string[];
-  };
+  inputSchema: any; // JSON Schema 또는 기존 타입 모두 허용
 }
 
 /**
@@ -103,3 +100,6 @@ export interface IToolValidationResult {
   errors: string[];
   warnings: string[];
 }
+
+// === MCP Blogger Tool Input Schemas ===
+// blogPostInputSchema, blogBatchPostInputSchema는 src/schemas/blogger에서 import

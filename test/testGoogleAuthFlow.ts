@@ -41,7 +41,7 @@ async function testAuthAndApi() {
     fs.writeFileSync(BLOG_ID_CACHE_PATH, JSON.stringify({ blogUrl, blogId }, null, 2));
   }
 
-  let tokens = TokenManager.loadTokens();
+  let tokens = await TokenManager.loadTokens();
   let needAuth = false;
 
   if (!tokens || !tokens.access_token) {
@@ -72,7 +72,7 @@ async function testAuthAndApi() {
       await runGoogleAuthFlow(googleAuth);
       console.log("✅ 인증 플로우가 정상적으로 완료되었습니다.");
       // 인증 후 API 재시도
-      tokens = TokenManager.loadTokens();
+      tokens = await TokenManager.loadTokens();
       const bloggerService = new BloggerService(googleAuth.getAuthClient());
       const blogs = await bloggerService.getBlogsList();
       console.log("✅ 인증 후 API 호출 성공! 블로그 목록:", blogs);
